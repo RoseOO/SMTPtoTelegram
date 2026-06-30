@@ -3,6 +3,7 @@ set -e
 
 APP_DIR="/opt/smtp2telegram"
 SERVICE_NAME="smtp2telegram"
+SERVICE_USER="${SERVICE_USER:-nobody}"
 NODE_VERSION="22"
 
 echo "=== SMTP to Telegram Installer ==="
@@ -23,7 +24,16 @@ fi
 
 echo "[2/5] Creating application directory..."
 mkdir -p "$APP_DIR"
-cp -r "$(dirname "$0")"/* "$APP_DIR/" 2>/dev/null || true
+SRC_DIR="$(dirname "$(realpath "$0")")"
+shopt -s dotglob
+for item in "$SRC_DIR"/*; do
+  base="$(basename "$item")"
+  [[ "$base" == "node_modules" ]] && continue
+  [[ "$base" == "data" ]] && continue
+  [[ "$base" == ".env" ]] && continue
+  cp -r "$item" "$APP_DIR/"
+done
+shopt -u dotglob
 chown -R root:root "$APP_DIR"
 chmod -R 755 "$APP_DIR"
 
@@ -45,7 +55,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=nobody
+User=$SERVICE_USER
 WorkingDirectory=$APP_DIR
 ExecStart=/usr/bin/node server.js
 Restart=on-failure

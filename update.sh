@@ -20,7 +20,7 @@ echo "[1/3] Stopping service..."
 systemctl stop "$SERVICE_NAME" || true
 
 echo "[2/3] Copying updated files..."
-SRC_DIR="$(dirname "$0")"
+SRC_DIR="$(dirname "$(realpath "$0")")"
 cp -r "$SRC_DIR"/lib "$APP_DIR/"
 cp -r "$SRC_DIR"/web "$APP_DIR/"
 cp "$SRC_DIR"/server.js "$APP_DIR/"
