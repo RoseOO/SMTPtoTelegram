@@ -60,6 +60,7 @@ After=network.target
 Type=simple
 User=$SERVICE_USER
 WorkingDirectory=$APP_DIR
+Environment=DATA_DIR=/var/lib/smtp2telegram
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=1s
@@ -67,11 +68,12 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=$SERVICE_NAME
 
-# Security hardening
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
+StateDirectory=smtp2telegram
 
 [Install]
 WantedBy=multi-user.target
