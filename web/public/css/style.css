@@ -30,6 +30,10 @@ nav {
   height: 52px;
 }
 
+.nav-right { margin-left: auto; }
+.nav-right a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+.nav-right a:hover { color: var(--text); }
+
 .nav-brand {
   font-weight: 700;
   font-size: 1.1rem;

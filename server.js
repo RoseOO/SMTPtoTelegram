@@ -12,6 +12,19 @@ initDatabase();
 initAllBots();
 
 const app = express();
+
+app.use((req, res, next) => {
+  const raw = req.headers.cookie || '';
+  req.cookies = {};
+  for (const part of raw.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq > 0) {
+      req.cookies[part.substring(0, eq).trim()] = decodeURIComponent(part.substring(eq + 1).trim());
+    }
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

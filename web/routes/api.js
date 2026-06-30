@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 
@@ -10,11 +11,25 @@ const {
 
 const { initBotById, stopBot, reloadSeverityKeywords } = require('../../lib/telegram');
 
+const COOKIE_NAME = 'smtp2tg_session';
+
+function verifyToken(token, password) {
+  if (!token || !password) return false;
+  const [salt, hash] = token.split('.');
+  if (!salt || !hash) return false;
+  const expected = crypto.createHmac('sha256', password).update(salt).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 function adminAuth(req, res, next) {
   const pw = process.env.ADMIN_PASSWORD;
   if (!pw) return next();
-  const auth = req.headers['x-admin-password'] || req.query.password || '';
-  if (auth === pw) return next();
+  const token = req.cookies?.[COOKIE_NAME];
+  if (token && verifyToken(token, pw)) return next();
   return res.status(401).json({ error: 'Unauthorized' });
 }
 
