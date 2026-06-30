@@ -65,17 +65,21 @@ router.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-router.get('/', (req, res) => res.render('index'));
-router.get('/bots', (req, res) => res.render('bots'));
-router.get('/rules', (req, res) => res.render('rules'));
-router.get('/logs', (req, res) => res.render('logs'));
+function renderPage(res, page, data) {
+  res.render('layout', { page, ...data });
+}
+
+router.get('/', (req, res) => renderPage(res, 'index'));
+router.get('/bots', (req, res) => renderPage(res, 'bots'));
+router.get('/rules', (req, res) => renderPage(res, 'rules'));
+router.get('/logs', (req, res) => renderPage(res, 'logs'));
 
 router.get('/settings', (req, res) => {
   const rows = loadSettings();
   const db = {};
   for (const row of rows) db[row.key] = row.value;
 
-  res.render('settings', {
+  renderPage(res, 'settings', {
     smtpPort: db.SMTP_PORT || getEnv('SMTP_PORT', '2525'),
     smtpSecure: db.SMTP_SECURE || getEnv('SMTP_SECURE', 'false'),
     smtpAuth: db.SMTP_AUTH_USERS || getEnv('SMTP_AUTH_USERS', ''),
