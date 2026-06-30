@@ -31,6 +31,7 @@ for item in "$SRC_DIR"/*; do
   [[ "$base" == "node_modules" ]] && continue
   [[ "$base" == "data" ]] && continue
   [[ "$base" == ".env" ]] && continue
+  rm -rf "$APP_DIR/$base"
   cp -r "$item" "$APP_DIR/"
 done
 shopt -u dotglob

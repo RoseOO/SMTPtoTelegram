@@ -22,11 +22,12 @@ systemctl stop "$SERVICE_NAME" || true
 
 echo "[2/5] Copying updated files..."
 SRC_DIR="$(dirname "$(realpath "$0")")"
-cp -r "$SRC_DIR"/lib "$APP_DIR/"
-cp -r "$SRC_DIR"/web "$APP_DIR/"
-cp "$SRC_DIR"/server.js "$APP_DIR/"
-cp "$SRC_DIR"/package.json "$APP_DIR/"
-cp "$SRC_DIR"/.env.example "$APP_DIR/"
+rm -rf "$APP_DIR/lib" "$APP_DIR/web"
+cp -r "$SRC_DIR/lib" "$APP_DIR/"
+cp -r "$SRC_DIR/web" "$APP_DIR/"
+cp "$SRC_DIR/server.js" "$APP_DIR/"
+cp "$SRC_DIR/package.json" "$APP_DIR/"
+cp "$SRC_DIR/.env.example" "$APP_DIR/"
 
 if [ ! -f "$APP_DIR/.env" ]; then
   cp "$APP_DIR/.env.example" "$APP_DIR/.env"
