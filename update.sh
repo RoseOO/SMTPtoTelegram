@@ -3,6 +3,7 @@ set -e
 
 APP_DIR="/opt/smtp2telegram"
 SERVICE_NAME="smtp2telegram"
+SERVICE_USER="${SERVICE_USER:-nobody}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo)."
@@ -16,10 +17,10 @@ fi
 
 echo "=== SMTP to Telegram Updater ==="
 
-echo "[1/3] Stopping service..."
+echo "[1/5] Stopping service..."
 systemctl stop "$SERVICE_NAME" || true
 
-echo "[2/3] Copying updated files..."
+echo "[2/5] Copying updated files..."
 SRC_DIR="$(dirname "$(realpath "$0")")"
 cp -r "$SRC_DIR"/lib "$APP_DIR/"
 cp -r "$SRC_DIR"/web "$APP_DIR/"
@@ -31,10 +32,42 @@ if [ ! -f "$APP_DIR/.env" ]; then
   cp "$APP_DIR/.env.example" "$APP_DIR/.env"
 fi
 
+mkdir -p "$APP_DIR/data"
+chown "$SERVICE_USER" "$APP_DIR/data"
+
 cd "$APP_DIR"
 npm install --production
 
-echo "[3/3] Starting service..."
+echo "[3/5] Updating systemd service..."
+cat > "/etc/systemd/system/${SERVICE_NAME}.service" << EOF
+[Unit]
+Description=SMTP to Telegram Forwarder
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+WorkingDirectory=$APP_DIR
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=1s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=$SERVICE_NAME
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "[4/5] Reloading systemd..."
+systemctl daemon-reload
+
+echo "[5/5] Starting service..."
 systemctl start "$SERVICE_NAME"
 
 echo ""

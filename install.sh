@@ -34,8 +34,11 @@ for item in "$SRC_DIR"/*; do
   cp -r "$item" "$APP_DIR/"
 done
 shopt -u dotglob
+mkdir -p "$APP_DIR/data"
 chown -R root:root "$APP_DIR"
+chown "$SERVICE_USER" "$APP_DIR/data"
 chmod -R 755 "$APP_DIR"
+chmod 755 "$APP_DIR/data"
 
 echo "[3/5] Installing dependencies..."
 cd "$APP_DIR"
@@ -68,8 +71,6 @@ SyslogIdentifier=$SERVICE_NAME
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=$APP_DIR/data
-ReadOnlyPaths=$APP_DIR
 PrivateTmp=yes
 
 [Install]
@@ -90,7 +91,8 @@ echo "  Config:   $APP_DIR/.env"
 echo "  Logs:     journalctl -u $SERVICE_NAME -f"
 echo ""
 echo "  Next steps:"
-echo "    1. Edit $APP_DIR/.env to set your Telegram bot tokens"
-echo "    2. Open the Web UI and add bots + rules"
-echo "    3. Point your mail server/relay at this server on port 2525"
+echo "    1. Open the Web UI and add your Telegram bot tokens (Bots tab)"
+echo "    2. Create routing rules (Rules tab)"
+echo "    3. Edit $APP_DIR/.env for SMTP TLS/auth/wildcard settings (optional)"
+echo "    4. Point your mail server/relay at this server on port 2525"
 echo ""
