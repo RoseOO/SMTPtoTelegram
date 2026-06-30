@@ -7,6 +7,7 @@ const {
   getBots, createBot, updateBot, deleteBot,
   getRules, createRule, updateRule, deleteRule,
   getLogs, getLogCount, clearLogs,
+  loadSettings, saveSettings,
 } = require('../../lib/database');
 
 const { initBotById, stopBot, reloadSeverityKeywords } = require('../../lib/telegram');
@@ -146,14 +147,23 @@ router.delete('/logs', (req, res) => {
 });
 
 router.get('/config', (req, res) => {
-  res.json({
-    smtpPort: process.env.SMTP_PORT || 2525,
-    smtpSecure: process.env.SMTP_SECURE === 'true',
-    smtpAuth: !!process.env.SMTP_AUTH_USERS,
-    defaultBotId: process.env.DEFAULT_BOT_ID || '',
-    defaultChatId: process.env.DEFAULT_CHAT_ID || '',
-    severityKeywords: process.env.SEVERITY_KEYWORDS || '',
-  });
+  const rows = loadSettings();
+  const settings = {};
+  for (const row of rows) {
+    settings[row.key] = row.value;
+  }
+  for (const key of ['SMTP_PORT','SMTP_SECURE','SMTP_AUTH_USERS','SMTP_MAX_SIZE','DEFAULT_BOT_ID','DEFAULT_CHAT_ID','SEVERITY_KEYWORDS']) {
+    if (!(key in settings) && process.env[key]) {
+      settings[key] = process.env[key];
+    }
+  }
+  res.json(settings);
+});
+
+router.put('/config', async (req, res) => {
+  saveSettings(req.body);
+  await req.app.get('restartSmtp')();
+  res.json({ success: true });
 });
 
 router.post('/config/reload-severity', (req, res) => {

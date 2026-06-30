@@ -233,3 +233,18 @@ code {
 .log-summary { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
 
 .pagination { display: flex; gap: 0.35rem; margin-top: 1rem; flex-wrap: wrap; }
+
+.toast {
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid var(--success);
+  color: var(--success);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+.toast-error {
+  background: rgba(247, 79, 90, 0.15);
+  border-color: var(--danger);
+  color: var(--danger);
+}

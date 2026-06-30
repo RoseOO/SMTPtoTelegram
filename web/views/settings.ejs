@@ -1,56 +1,71 @@
 <div class="page">
-  <h1>Settings</h1>
-
-  <div class="settings-card">
-    <h2>SMTP Server Status</h2>
-    <table class="info-table">
-      <tr><td>SMTP Port</td><td><code><%= smtpPort %></code></td></tr>
-      <tr><td>TLS Mode</td><td><code><%= smtpSecure ? 'SMTPS (TLS on connect)' : 'Plain / STARTTLS' %></code></td></tr>
-      <tr><td>Authentication</td><td><code><%= smtpAuth ? 'Enabled' : 'Disabled (open relay on configured host)' %></code></td></tr>
-    </table>
-    <p class="hint">These settings are configured in the <code>.env</code> file and require a restart to take effect.</p>
+  <div class="page-header">
+    <h1>Settings</h1>
+    <button class="btn btn-primary" onclick="saveSettings()">Save &amp; Apply</button>
   </div>
 
-  <div class="settings-card">
-    <h2>Wildcard Default Route</h2>
-    <table class="info-table">
-      <tr><td>Default Bot ID</td><td><code><%= defaultBotId || '(not set)' %></code></td></tr>
-      <tr><td>Default Chat ID</td><td><code><%= defaultChatId || '(not set)' %></code></td></tr>
-    </table>
-    <p class="hint">When both are set, any email that doesn't match explicit rules gets forwarded to this default chat. Set via <code>DEFAULT_BOT_ID</code> and <code>DEFAULT_CHAT_ID</code> in <code>.env</code>.</p>
-  </div>
+  <div id="settings-saved" class="toast" style="display:none">Settings saved. SMTP server restarted with new config.</div>
+  <div id="settings-error" class="toast toast-error" style="display:none"></div>
 
-  <div class="settings-card">
-    <h2>Severity Detection</h2>
-    <p>Configured keywords: <code><%= severityKeywords || '(not set)' %></code></p>
-    <p class="hint">Severity levels are detected by scanning email subjects and bodies for keywords. Each level has an icon: 🔴 CRITICAL, 🟠 HIGH, 🟡 MEDIUM, 🟢 LOW. Configure via <code>SEVERITY_KEYWORDS</code> in <code>.env</code>.</p>
-  </div>
+  <form id="settings-form" onsubmit="return false">
+    <div class="settings-card">
+      <h2>SMTP Server</h2>
+      <div class="form-group">
+        <label for="SMTP_PORT">Port</label>
+        <input type="number" id="SMTP_PORT" value="<%= smtpPort %>" min="1" max="65535">
+        <small>Requires restart. Ports below 1024 need CAP_NET_BIND_SERVICE (enabled in systemd).</small>
+      </div>
+      <div class="form-group">
+        <label for="SMTP_SECURE">TLS Mode</label>
+        <select id="SMTP_SECURE">
+          <option value="false" <%= smtpSecure === 'true' ? '' : 'selected' %>>Plain / STARTTLS</option>
+          <option value="true" <%= smtpSecure === 'true' ? 'selected' : '' %>>SMTPS (TLS on connect)</option>
+        </select>
+        <small>Requires restart. For STARTTLS, also set TLS cert/key in .env.</small>
+      </div>
+      <div class="form-group">
+        <label for="SMTP_AUTH_USERS">Auth Users</label>
+        <input type="text" id="SMTP_AUTH_USERS" value="<%= smtpAuth %>" placeholder="Leave empty for no auth">
+        <small>Format: user1:pass1,user2:pass2. Requires restart.</small>
+      </div>
+      <div class="form-group">
+        <label for="SMTP_MAX_SIZE">Max Message Size (bytes)</label>
+        <input type="number" id="SMTP_MAX_SIZE" value="<%= smtpMaxSize %>" min="1">
+        <small>Default 10485760 (10 MB). Requires restart.</small>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h2>Wildcard Default Route</h2>
+      <p class="hint">When both are set, unmatched emails forward here without any rules.</p>
+      <div class="form-group">
+        <label for="DEFAULT_BOT_ID">Default Bot ID</label>
+        <input type="text" id="DEFAULT_BOT_ID" value="<%= defaultBotId %>" placeholder="Bot UUID from Bots tab">
+      </div>
+      <div class="form-group">
+        <label for="DEFAULT_CHAT_ID">Default Chat ID</label>
+        <input type="text" id="DEFAULT_CHAT_ID" value="<%= defaultChatId %>" placeholder="e.g., 123456789 or @username">
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h2>Severity Keywords</h2>
+      <p class="hint">Format: LEVEL:word1,word2;LEVEL:word1,word2</p>
+      <div class="form-group">
+        <label for="SEVERITY_KEYWORDS">Keywords</label>
+        <textarea id="SEVERITY_KEYWORDS" rows="3" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:0.5rem;font-size:0.85rem;font-family:monospace;resize:vertical;"><%= severityKeywords %></textarea>
+      </div>
+    </div>
+  </form>
 
   <div class="settings-card">
     <h2>Configuration Guide</h2>
-
-    <h3>Environment Variables (<code>.env</code>)</h3>
-    <table class="info-table">
-      <tr><td><code>WEB_PORT</code></td><td>Web UI port (default: 3000)</td></tr>
-      <tr><td><code>WEB_HOST</code></td><td>Web UI bind address (default: 127.0.0.1)</td></tr>
-      <tr><td><code>ADMIN_PASSWORD</code></td><td>Optional password for web UI access</td></tr>
-      <tr><td><code>SMTP_PORT</code></td><td>SMTP server port (default: 2525)</td></tr>
-      <tr><td><code>SMTP_HOST</code></td><td>SMTP bind address (default: 0.0.0.0)</td></tr>
-      <tr><td><code>SMTP_SECURE</code></td><td>Use SMTPS mode (true/false)</td></tr>
-      <tr><td><code>SMTP_TLS_CERT</code></td><td>Path to TLS certificate file</td></tr>
-      <tr><td><code>SMTP_TLS_KEY</code></td><td>Path to TLS private key file</td></tr>
-      <tr><td><code>SMTP_AUTH_USERS</code></td><td>Comma-separated user:pass pairs</td></tr>
-      <tr><td><code>SMTP_MAX_SIZE</code></td><td>Max email size in bytes (default: 10MB)</td></tr>
-      <tr><td><code>DEFAULT_BOT_ID</code></td><td>Bot ID for wildcard catch-all routing</td></tr>
-      <tr><td><code>DEFAULT_CHAT_ID</code></td><td>Chat ID for wildcard catch-all routing</td></tr>
-      <tr><td><code>SEVERITY_KEYWORDS</code></td><td>Keywords for severity detection (see above)</td></tr>
-    </table>
 
     <h3>Getting a Telegram Bot Token</h3>
     <ol>
       <li>Open Telegram and chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a></li>
       <li>Send <code>/newbot</code> and follow the prompts</li>
-      <li>Copy the token and add it in the Bots section</li>
+      <li>Copy the token and add it in the Bots tab</li>
     </ol>
 
     <h3>Finding Your Chat ID</h3>
@@ -58,7 +73,7 @@
       <li>Send a message to your bot on Telegram</li>
       <li>Visit <code>https://api.telegram.org/bot&lt;YOUR_TOKEN&gt;/getUpdates</code></li>
       <li>Look for <code>"chat":{"id":123456789}</code> in the response</li>
-      <li>For group chats, the ID is a negative number like <code>-1001234567890</code></li>
+      <li>Group chats use a negative number like <code>-1001234567890</code></li>
     </ol>
 
     <h3>Rule Patterns</h3>
@@ -68,5 +83,38 @@
       <li><code>*</code> - Match all senders (catch-all)</li>
       <li><code>noreply@*</code> - Match any noreply address</li>
     </ul>
+
+    <h3>TLS Certificates</h3>
+    <p class="hint">TLS cert/key paths are set in <code>.env</code> (<code>SMTP_TLS_CERT</code>, <code>SMTP_TLS_KEY</code>) and require a service restart.</p>
   </div>
 </div>
+
+<script>
+async function saveSettings() {
+  const payload = {
+    SMTP_PORT: document.getElementById('SMTP_PORT').value,
+    SMTP_SECURE: document.getElementById('SMTP_SECURE').value,
+    SMTP_AUTH_USERS: document.getElementById('SMTP_AUTH_USERS').value,
+    SMTP_MAX_SIZE: document.getElementById('SMTP_MAX_SIZE').value,
+    DEFAULT_BOT_ID: document.getElementById('DEFAULT_BOT_ID').value,
+    DEFAULT_CHAT_ID: document.getElementById('DEFAULT_CHAT_ID').value,
+    SEVERITY_KEYWORDS: document.getElementById('SEVERITY_KEYWORDS').value,
+  };
+  try {
+    const r = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const el = document.getElementById('settings-saved');
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+  } catch (e) {
+    const el = document.getElementById('settings-error');
+    el.textContent = 'Error: ' + e.message;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 6000);
+  }
+}
+</script>

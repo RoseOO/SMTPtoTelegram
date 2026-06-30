@@ -1,8 +1,9 @@
 require('dotenv').config();
 
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
-const { initDatabase } = require('./lib/database');
+const { initDatabase, getSetting, loadSettings } = require('./lib/database');
 const { createSMTPServer } = require('./lib/smtp-server');
 const { initAllBots, reloadSeverityKeywords } = require('./lib/telegram');
 const apiRoutes = require('./web/routes/api');
@@ -10,6 +11,88 @@ const pageRoutes = require('./web/routes/pages');
 
 initDatabase();
 initAllBots();
+
+function env(key, fallback) {
+  return process.env[key] !== undefined && process.env[key] !== '' ? process.env[key] : (getSetting(key) || fallback);
+}
+
+function envBool(key) {
+  const v = env(key, 'false');
+  return v === 'true' || v === '1';
+}
+
+function envInt(key, fallback) {
+  const v = env(key, String(fallback));
+  const n = parseInt(v);
+  return isNaN(n) ? fallback : n;
+}
+
+function parseAuthUsers(raw) {
+  const users = [];
+  if (raw) {
+    for (const entry of raw.split(',')) {
+      const [user, ...pass] = entry.trim().split(':');
+      if (user && pass.length) {
+        users.push({ user: user.trim(), pass: pass.join(':').trim() });
+      }
+    }
+  }
+  return users;
+}
+
+function buildSmtpConfig() {
+  const authUsers = parseAuthUsers(env('SMTP_AUTH_USERS', ''));
+  const tlsCert = process.env.SMTP_TLS_CERT || null;
+  const tlsKey = process.env.SMTP_TLS_KEY || null;
+
+  return {
+    host: env('SMTP_HOST', '0.0.0.0'),
+    secure: envBool('SMTP_SECURE'),
+    tlsCert,
+    tlsKey,
+    authUsers,
+    maxSize: envInt('SMTP_MAX_SIZE', 10485760),
+    defaultBotId: env('DEFAULT_BOT_ID', null),
+    defaultChatId: env('DEFAULT_CHAT_ID', null),
+  };
+}
+
+let smtpServer = null;
+let currentPort = null;
+
+function startSmtp() {
+  const config = buildSmtpConfig();
+  currentPort = envInt('SMTP_PORT', 2525);
+  const smtpHost = config.host;
+
+  smtpServer = createSMTPServer(config);
+  smtpServer.listen(currentPort, smtpHost, () => {
+    const mode = config.secure ? 'SMTPS' : (config.tlsCert ? 'STARTTLS' : 'Plain');
+    const auth = config.authUsers.length > 0 ? `with auth (${config.authUsers.length} users)` : 'no auth';
+    console.log(`SMTP server listening on ${smtpHost}:${currentPort} (${mode}, ${auth})`);
+  });
+  return smtpServer;
+}
+
+function restartSmtp() {
+  return new Promise((resolve, reject) => {
+    if (smtpServer) {
+      smtpServer.close(() => {
+        try {
+          reloadSeverityKeywords();
+          startSmtp();
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+    } else {
+      reloadSeverityKeywords();
+      startSmtp();
+      resolve();
+    }
+  });
+}
 
 const app = express();
 
@@ -32,6 +115,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'web', 'views'));
 app.use(express.static(path.join(__dirname, 'web', 'public')));
 
+app.set('restartSmtp', restartSmtp);
+
 app.use('/api', apiRoutes);
 app.use('/', pageRoutes);
 
@@ -42,52 +127,15 @@ app.listen(webPort, webHost, () => {
   console.log(`Web UI running at http://${webHost}:${webPort}`);
 });
 
-const smtpPort = parseInt(process.env.SMTP_PORT) || 2525;
-const smtpHost = process.env.SMTP_HOST || '0.0.0.0';
-
-const authUsers = [];
-if (process.env.SMTP_AUTH_USERS) {
-  for (const entry of process.env.SMTP_AUTH_USERS.split(',')) {
-    const [user, ...pass] = entry.trim().split(':');
-    if (user && pass.length) {
-      authUsers.push({ user: user.trim(), pass: pass.join(':').trim() });
-    }
-  }
-}
-
-let tlsCert = null;
-let tlsKey = null;
-if (process.env.SMTP_TLS_CERT && process.env.SMTP_TLS_KEY) {
-  const fs = require('fs');
-  tlsCert = process.env.SMTP_TLS_CERT;
-  tlsKey = process.env.SMTP_TLS_KEY;
-}
-
-const smtpConfig = {
-  host: smtpHost,
-  secure: process.env.SMTP_SECURE === 'true',
-  tlsCert,
-  tlsKey,
-  authUsers,
-  maxSize: parseInt(process.env.SMTP_MAX_SIZE) || 10485760,
-  defaultBotId: process.env.DEFAULT_BOT_ID || null,
-  defaultChatId: process.env.DEFAULT_CHAT_ID || null,
-};
-
-const smtpServer = createSMTPServer(smtpConfig);
-smtpServer.listen(smtpPort, smtpHost, () => {
-  const mode = smtpConfig.secure ? 'SMTPS' : (smtpConfig.tlsCert ? 'STARTTLS' : 'Plain');
-  const auth = authUsers.length > 0 ? `with auth (${authUsers.length} users)` : 'no auth';
-  console.log(`SMTP server listening on ${smtpHost}:${smtpPort} (${mode}, ${auth})`);
-});
+startSmtp();
 
 process.on('SIGTERM', () => {
   console.log('Shutting down...');
-  smtpServer.close();
+  if (smtpServer) smtpServer.close();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  smtpServer.close();
+  if (smtpServer) smtpServer.close();
   process.exit(0);
 });

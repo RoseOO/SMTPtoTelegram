@@ -1,7 +1,14 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
+const { loadSettings } = require('../../lib/database');
 const router = express.Router();
+
+function getEnv(key, fallback) {
+  const v = process.env[key];
+  if (v !== undefined && v !== '') return v;
+  return fallback;
+}
 
 const COOKIE_NAME = 'smtp2tg_session';
 const COOKIE_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -64,13 +71,18 @@ router.get('/rules', (req, res) => res.render('rules'));
 router.get('/logs', (req, res) => res.render('logs'));
 
 router.get('/settings', (req, res) => {
+  const rows = loadSettings();
+  const db = {};
+  for (const row of rows) db[row.key] = row.value;
+
   res.render('settings', {
-    smtpPort: process.env.SMTP_PORT || 2525,
-    smtpSecure: process.env.SMTP_SECURE === 'true',
-    smtpAuth: !!process.env.SMTP_AUTH_USERS,
-    defaultBotId: process.env.DEFAULT_BOT_ID || '',
-    defaultChatId: process.env.DEFAULT_CHAT_ID || '',
-    severityKeywords: process.env.SEVERITY_KEYWORDS || '',
+    smtpPort: db.SMTP_PORT || getEnv('SMTP_PORT', '2525'),
+    smtpSecure: db.SMTP_SECURE || getEnv('SMTP_SECURE', 'false'),
+    smtpAuth: db.SMTP_AUTH_USERS || getEnv('SMTP_AUTH_USERS', ''),
+    smtpMaxSize: db.SMTP_MAX_SIZE || getEnv('SMTP_MAX_SIZE', '10485760'),
+    defaultBotId: db.DEFAULT_BOT_ID || getEnv('DEFAULT_BOT_ID', ''),
+    defaultChatId: db.DEFAULT_CHAT_ID || getEnv('DEFAULT_CHAT_ID', ''),
+    severityKeywords: db.SEVERITY_KEYWORDS || getEnv('SEVERITY_KEYWORDS', ''),
   });
 });
 
