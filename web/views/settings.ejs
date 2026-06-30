@@ -1,0 +1,72 @@
+<div class="page">
+  <h1>Settings</h1>
+
+  <div class="settings-card">
+    <h2>SMTP Server Status</h2>
+    <table class="info-table">
+      <tr><td>SMTP Port</td><td><code><%= smtpPort %></code></td></tr>
+      <tr><td>TLS Mode</td><td><code><%= smtpSecure ? 'SMTPS (TLS on connect)' : 'Plain / STARTTLS' %></code></td></tr>
+      <tr><td>Authentication</td><td><code><%= smtpAuth ? 'Enabled' : 'Disabled (open relay on configured host)' %></code></td></tr>
+    </table>
+    <p class="hint">These settings are configured in the <code>.env</code> file and require a restart to take effect.</p>
+  </div>
+
+  <div class="settings-card">
+    <h2>Wildcard Default Route</h2>
+    <table class="info-table">
+      <tr><td>Default Bot ID</td><td><code><%= defaultBotId || '(not set)' %></code></td></tr>
+      <tr><td>Default Chat ID</td><td><code><%= defaultChatId || '(not set)' %></code></td></tr>
+    </table>
+    <p class="hint">When both are set, any email that doesn't match explicit rules gets forwarded to this default chat. Set via <code>DEFAULT_BOT_ID</code> and <code>DEFAULT_CHAT_ID</code> in <code>.env</code>.</p>
+  </div>
+
+  <div class="settings-card">
+    <h2>Severity Detection</h2>
+    <p>Configured keywords: <code><%= severityKeywords || '(not set)' %></code></p>
+    <p class="hint">Severity levels are detected by scanning email subjects and bodies for keywords. Each level has an icon: 🔴 CRITICAL, 🟠 HIGH, 🟡 MEDIUM, 🟢 LOW. Configure via <code>SEVERITY_KEYWORDS</code> in <code>.env</code>.</p>
+  </div>
+
+  <div class="settings-card">
+    <h2>Configuration Guide</h2>
+
+    <h3>Environment Variables (<code>.env</code>)</h3>
+    <table class="info-table">
+      <tr><td><code>WEB_PORT</code></td><td>Web UI port (default: 3000)</td></tr>
+      <tr><td><code>WEB_HOST</code></td><td>Web UI bind address (default: 127.0.0.1)</td></tr>
+      <tr><td><code>ADMIN_PASSWORD</code></td><td>Optional password for web UI access</td></tr>
+      <tr><td><code>SMTP_PORT</code></td><td>SMTP server port (default: 2525)</td></tr>
+      <tr><td><code>SMTP_HOST</code></td><td>SMTP bind address (default: 0.0.0.0)</td></tr>
+      <tr><td><code>SMTP_SECURE</code></td><td>Use SMTPS mode (true/false)</td></tr>
+      <tr><td><code>SMTP_TLS_CERT</code></td><td>Path to TLS certificate file</td></tr>
+      <tr><td><code>SMTP_TLS_KEY</code></td><td>Path to TLS private key file</td></tr>
+      <tr><td><code>SMTP_AUTH_USERS</code></td><td>Comma-separated user:pass pairs</td></tr>
+      <tr><td><code>SMTP_MAX_SIZE</code></td><td>Max email size in bytes (default: 10MB)</td></tr>
+      <tr><td><code>DEFAULT_BOT_ID</code></td><td>Bot ID for wildcard catch-all routing</td></tr>
+      <tr><td><code>DEFAULT_CHAT_ID</code></td><td>Chat ID for wildcard catch-all routing</td></tr>
+      <tr><td><code>SEVERITY_KEYWORDS</code></td><td>Keywords for severity detection (see above)</td></tr>
+    </table>
+
+    <h3>Getting a Telegram Bot Token</h3>
+    <ol>
+      <li>Open Telegram and chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a></li>
+      <li>Send <code>/newbot</code> and follow the prompts</li>
+      <li>Copy the token and add it in the Bots section</li>
+    </ol>
+
+    <h3>Finding Your Chat ID</h3>
+    <ol>
+      <li>Send a message to your bot on Telegram</li>
+      <li>Visit <code>https://api.telegram.org/bot&lt;YOUR_TOKEN&gt;/getUpdates</code></li>
+      <li>Look for <code>"chat":{"id":123456789}</code> in the response</li>
+      <li>For group chats, the ID is a negative number like <code>-1001234567890</code></li>
+    </ol>
+
+    <h3>Rule Patterns</h3>
+    <ul>
+      <li><code>*@domain.com</code> - Match all senders from a domain</li>
+      <li><code>user@domain.com</code> - Match exact email</li>
+      <li><code>*</code> - Match all senders (catch-all)</li>
+      <li><code>noreply@*</code> - Match any noreply address</li>
+    </ul>
+  </div>
+</div>

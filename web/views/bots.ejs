@@ -1,0 +1,111 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Telegram Bots</h1>
+    <button class="btn btn-primary" onclick="showAddBot()">+ Add Bot</button>
+  </div>
+
+  <table class="data-table" id="bots-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Token</th>
+        <th>Enabled</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="bot-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h2 id="modal-title">Add Bot</h2>
+      <form id="bot-form">
+        <input type="hidden" id="bot-id">
+        <div class="form-group">
+          <label for="bot-name">Name</label>
+          <input type="text" id="bot-name" required placeholder="My Bot">
+        </div>
+        <div class="form-group">
+          <label for="bot-token">Bot Token <small>(from @BotFather)</small></label>
+          <input type="password" id="bot-token" required placeholder="123456:ABC-DEF1234ghikl...">
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="bot-enabled" checked> Enabled</label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('bot-modal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let editingId = null;
+
+async function loadBots() {
+  const bots = await fetch('/api/bots').then(r => r.json());
+  const tbody = document.querySelector('#bots-table tbody');
+  tbody.innerHTML = bots.map(b => `
+    <tr>
+      <td>${h(b.name)}</td>
+      <td><code>${h(b.token.substring(0, 20))}...</code></td>
+      <td><span class="badge badge-${b.enabled ? 'delivered' : 'failed'}">${b.enabled ? 'Yes' : 'No'}</span></td>
+      <td>${b.created_at}</td>
+      <td class="actions">
+        <button class="btn btn-sm" onclick="editBot('${b.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteBot('${b.id}')">Delete</button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="empty">No bots configured</td></tr>';
+}
+
+function showAddBot() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Bot';
+  document.getElementById('bot-id').value = '';
+  document.getElementById('bot-name').value = '';
+  document.getElementById('bot-token').value = '';
+  document.getElementById('bot-enabled').checked = true;
+  document.getElementById('bot-modal').style.display = 'flex';
+}
+
+async function editBot(id) {
+  const bots = await fetch('/api/bots').then(r => r.json());
+  const bot = bots.find(b => b.id === id);
+  if (!bot) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Bot';
+  document.getElementById('bot-id').value = bot.id;
+  document.getElementById('bot-name').value = bot.name;
+  document.getElementById('bot-token').value = bot.token;
+  document.getElementById('bot-enabled').checked = !!bot.enabled;
+  document.getElementById('bot-modal').style.display = 'flex';
+}
+
+async function deleteBot(id) {
+  if (!confirm('Delete this bot and all its rules?')) return;
+  await fetch(`/api/bots/${id}`, { method: 'DELETE' });
+  loadBots();
+}
+
+document.getElementById('bot-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    name: document.getElementById('bot-name').value,
+    token: document.getElementById('bot-token').value,
+    enabled: document.getElementById('bot-enabled').checked,
+  };
+  if (editingId) {
+    await fetch(`/api/bots/${editingId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  } else {
+    await fetch('/api/bots', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  }
+  closeModal('bot-modal');
+  loadBots();
+});
+
+loadBots();
+</script>

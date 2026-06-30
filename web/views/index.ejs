@@ -1,0 +1,61 @@
+<div class="dashboard">
+  <h1>Dashboard</h1>
+
+  <div class="stats-grid">
+    <div class="stat-card" id="stat-bots">
+      <div class="stat-value" id="bot-count">-</div>
+      <div class="stat-label">Bots</div>
+    </div>
+    <div class="stat-card" id="stat-rules">
+      <div class="stat-value" id="rule-count">-</div>
+      <div class="stat-label">Rules</div>
+    </div>
+    <div class="stat-card" id="stat-logs">
+      <div class="stat-value" id="log-count">-</div>
+      <div class="stat-label">Log Entries</div>
+    </div>
+    <div class="stat-card" id="stat-smtp">
+      <div class="stat-value" id="smtp-status">Running</div>
+      <div class="stat-label">SMTP Server</div>
+    </div>
+  </div>
+
+  <h2>Recent Logs</h2>
+  <table class="data-table" id="recent-logs">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Sender</th>
+        <th>Subject</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <a href="/logs" class="btn btn-link">View All Logs</a>
+</div>
+
+<script>
+(async () => {
+  try {
+    const [bots, rules, logsData] = await Promise.all([
+      fetch('/api/bots').then(r => r.json()),
+      fetch('/api/rules').then(r => r.json()),
+      fetch('/api/logs?limit=5').then(r => r.json()),
+    ]);
+    document.getElementById('bot-count').textContent = bots.length;
+    document.getElementById('rule-count').textContent = rules.length;
+    document.getElementById('log-count').textContent = logsData.total;
+
+    const tbody = document.querySelector('#recent-logs tbody');
+    tbody.innerHTML = logsData.logs.map(l => `
+      <tr>
+        <td>${l.timestamp}</td>
+        <td>${h(l.sender)}</td>
+        <td>${h(l.subject)}</td>
+        <td><span class="badge badge-${l.status}">${l.status}</span></td>
+      </tr>
+    `).join('');
+  } catch (e) { console.error(e); }
+})();
+</script>

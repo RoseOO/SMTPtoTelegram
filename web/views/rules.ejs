@@ -1,0 +1,146 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Routing Rules</h1>
+    <button class="btn btn-primary" onclick="showAddRule()">+ Add Rule</button>
+  </div>
+
+  <table class="data-table" id="rules-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Bot</th>
+        <th>Chat ID</th>
+        <th>Sender Pattern</th>
+        <th>Enabled</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="rule-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h2 id="rule-modal-title">Add Rule</h2>
+      <form id="rule-form">
+        <input type="hidden" id="rule-id">
+        <div class="form-group">
+          <label for="rule-name">Rule Name (optional)</label>
+          <input type="text" id="rule-name" placeholder="e.g., Alerts from IT">
+        </div>
+        <div class="form-group">
+          <label for="rule-bot">Bot</label>
+          <select id="rule-bot" required></select>
+        </div>
+        <div class="form-group">
+          <label for="rule-chat">Chat ID</label>
+          <input type="text" id="rule-chat" required placeholder="123456789 or @username or -100xxx">
+          <small>Telegram user ID, @username, or group/channel ID</small>
+        </div>
+        <div class="form-group">
+          <label for="rule-sender">Sender Pattern</label>
+          <input type="text" id="rule-sender" placeholder="* (catch-all)">
+          <small>Use * for wildcard. Examples: user@domain.com, *@domain.com, *</small>
+        </div>
+        <div class="form-group">
+          <label for="rule-subject">Subject Pattern (optional)</label>
+          <input type="text" id="rule-subject" placeholder="Leave blank to match all">
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="rule-enabled" checked> Enabled</label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('rule-modal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let editingRuleId = null;
+
+async function loadBotsSelect() {
+  const bots = await fetch('/api/bots').then(r => r.json());
+  const sel = document.getElementById('rule-bot');
+  sel.innerHTML = bots.map(b => `<option value="${b.id}">${h(b.name)}</option>`).join('');
+}
+
+async function loadRules() {
+  const rules = await fetch('/api/rules').then(r => r.json());
+  const tbody = document.querySelector('#rules-table tbody');
+  tbody.innerHTML = rules.map(r => `
+    <tr>
+      <td>${h(r.name || '-')}</td>
+      <td>${h(r.bot_name || r.bot_id)}</td>
+      <td><code>${h(r.chat_id)}</code></td>
+      <td><code>${h(r.sender_pattern || '*')}</code></td>
+      <td><span class="badge badge-${r.enabled ? 'delivered' : 'failed'}">${r.enabled ? 'Yes' : 'No'}</span></td>
+      <td>${r.created_at}</td>
+      <td class="actions">
+        <button class="btn btn-sm" onclick="editRule('${r.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRule('${r.id}')">Delete</button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" class="empty">No rules configured</td></tr>';
+}
+
+async function showAddRule() {
+  editingRuleId = null;
+  document.getElementById('rule-modal-title').textContent = 'Add Rule';
+  document.getElementById('rule-id').value = '';
+  document.getElementById('rule-name').value = '';
+  document.getElementById('rule-chat').value = '';
+  document.getElementById('rule-sender').value = '';
+  document.getElementById('rule-subject').value = '';
+  document.getElementById('rule-enabled').checked = true;
+  await loadBotsSelect();
+  document.getElementById('rule-modal').style.display = 'flex';
+}
+
+async function editRule(id) {
+  const rules = await fetch('/api/rules').then(r => r.json());
+  const rule = rules.find(r => r.id === id);
+  if (!rule) return;
+  editingRuleId = id;
+  document.getElementById('rule-modal-title').textContent = 'Edit Rule';
+  document.getElementById('rule-id').value = rule.id;
+  document.getElementById('rule-name').value = rule.name || '';
+  document.getElementById('rule-chat').value = rule.chat_id;
+  document.getElementById('rule-sender').value = rule.sender_pattern || '';
+  document.getElementById('rule-subject').value = rule.subject_pattern || '';
+  document.getElementById('rule-enabled').checked = !!rule.enabled;
+  await loadBotsSelect();
+  document.getElementById('rule-bot').value = rule.bot_id;
+  document.getElementById('rule-modal').style.display = 'flex';
+}
+
+async function deleteRule(id) {
+  if (!confirm('Delete this rule?')) return;
+  await fetch(`/api/rules/${id}`, { method: 'DELETE' });
+  loadRules();
+}
+
+document.getElementById('rule-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    name: document.getElementById('rule-name').value,
+    bot_id: document.getElementById('rule-bot').value,
+    chat_id: document.getElementById('rule-chat').value,
+    sender_pattern: document.getElementById('rule-sender').value || '*',
+    subject_pattern: document.getElementById('rule-subject').value || null,
+    enabled: document.getElementById('rule-enabled').checked,
+  };
+  if (editingRuleId) {
+    await fetch(`/api/rules/${editingRuleId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  } else {
+    await fetch('/api/rules', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  }
+  closeModal('rule-modal');
+  loadRules();
+});
+
+loadRules();
+loadBotsSelect();
+</script>

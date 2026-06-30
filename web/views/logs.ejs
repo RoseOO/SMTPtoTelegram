@@ -1,0 +1,72 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Logs</h1>
+    <div>
+      <button class="btn btn-secondary" onclick="refreshLogs()">Refresh</button>
+      <button class="btn btn-danger" onclick="clearLogs()">Clear All</button>
+    </div>
+  </div>
+
+  <div class="log-summary" id="log-summary"></div>
+
+  <table class="data-table" id="logs-table">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Sender</th>
+        <th>Recipient</th>
+        <th>Subject</th>
+        <th>Status</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="pagination" id="log-pagination"></div>
+</div>
+
+<script>
+const PAGE_SIZE = 50;
+let currentPage = 0;
+
+async function loadLogs(page = 0) {
+  currentPage = page;
+  const offset = page * PAGE_SIZE;
+  const data = await fetch(`/api/logs?limit=${PAGE_SIZE}&offset=${offset}`).then(r => r.json());
+  const tbody = document.querySelector('#logs-table tbody');
+  tbody.innerHTML = data.logs.map(l => `
+    <tr>
+      <td>${l.timestamp}</td>
+      <td>${h(l.sender)}</td>
+      <td>${h(l.recipient)}</td>
+      <td>${h(l.subject)}</td>
+      <td><span class="badge badge-${l.status}">${l.status}</span></td>
+      <td class="error-cell">${h(l.error || '')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">No logs yet</td></tr>';
+
+  document.getElementById('log-summary').textContent = `Showing ${offset+1}-${Math.min(offset+PAGE_SIZE, data.total)} of ${data.total} entries`;
+
+  const totalPages = Math.ceil(data.total / PAGE_SIZE);
+  const pagination = document.getElementById('log-pagination');
+  pagination.innerHTML = '';
+  for (let i = 0; i < totalPages && i < 20; i++) {
+    const btn = document.createElement('button');
+    btn.className = `btn btn-sm ${i === page ? 'btn-primary' : 'btn-secondary'}`;
+    btn.textContent = i + 1;
+    btn.onclick = () => loadLogs(i);
+    pagination.appendChild(btn);
+  }
+}
+
+function refreshLogs() { loadLogs(currentPage); }
+
+async function clearLogs() {
+  if (!confirm('Delete all logs?')) return;
+  await fetch('/api/logs', { method: 'DELETE' });
+  loadLogs(0);
+}
+
+loadLogs(0);
+</script>

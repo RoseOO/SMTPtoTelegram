@@ -1,0 +1,20 @@
+{
+  "name": "smtp-to-telegram",
+  "version": "1.0.0",
+  "description": "SMTP server that forwards emails to Telegram based on configurable rules",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "mailparser": "^3.7.2",
+    "smtp-server": "^3.13.6",
+    "telegraf": "^4.16.3",
+    "uuid": "^11.1.0"
+  }
+}
