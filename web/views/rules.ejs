@@ -30,12 +30,15 @@
         </div>
         <div class="form-group">
           <label for="rule-bot">Bot</label>
-          <select id="rule-bot" required></select>
+          <select id="rule-bot" required onchange="onBotChange()"></select>
         </div>
         <div class="form-group">
-          <label for="rule-chat">Chat ID</label>
-          <input type="text" id="rule-chat" required placeholder="123456789 or @username or -100xxx">
-          <small>Telegram user ID, @username, or group/channel ID</small>
+          <label for="rule-chat">Chat</label>
+          <select id="rule-chat" required onchange="onChatChange()">
+            <option value="">Pick a bot first...</option>
+          </select>
+          <input type="text" id="rule-chat-custom" placeholder="Or type custom chat ID" style="display:none;margin-top:0.35rem">
+          <small><a href="#" onclick="toggleCustomChat();return false">Type manually</a> &mdash; or pick from known chats above</small>
         </div>
         <div class="form-group">
           <label for="rule-sender">Sender Pattern</label>
@@ -64,7 +67,59 @@ let editingRuleId = null;
 async function loadBotsSelect() {
   const bots = await fetch('/api/bots').then(r => r.json());
   const sel = document.getElementById('rule-bot');
-  sel.innerHTML = bots.map(b => `<option value="${b.id}">${h(b.name)}</option>`).join('');
+  sel.innerHTML = '<option value="">-- Select Bot --</option>' + bots.map(b => `<option value="${b.id}">${h(b.name)}</option>`).join('');
+}
+
+function getChatValue() {
+  const sel = document.getElementById('rule-chat');
+  if (sel.style.display !== 'none' && sel.value && sel.value !== '__custom__') return sel.value;
+  return document.getElementById('rule-chat-custom').value;
+}
+
+function toggleCustomChat() {
+  const sel = document.getElementById('rule-chat');
+  const inp = document.getElementById('rule-chat-custom');
+  if (inp.style.display === 'none') {
+    sel.style.display = 'none';
+    inp.style.display = 'block';
+    inp.focus();
+  } else {
+    sel.style.display = 'block';
+    inp.style.display = 'none';
+  }
+}
+
+function onChatChange() {
+  const sel = document.getElementById('rule-chat');
+  if (sel.value === '__custom__') {
+    toggleCustomChat();
+  }
+}
+
+async function onBotChange() {
+  const botId = document.getElementById('rule-bot').value;
+  const sel = document.getElementById('rule-chat');
+  sel.innerHTML = '<option value="">Loading chats...</option>';
+  sel.style.display = 'block';
+  document.getElementById('rule-chat-custom').style.display = 'none';
+
+  if (!botId) {
+    sel.innerHTML = '<option value="">Pick a bot first...</option>';
+    return;
+  }
+
+  try {
+    const data = await fetch(`/api/bots/${botId}/chats`).then(r => r.json());
+    let opts = '<option value="">Choose a chat...</option>';
+    for (const c of (data.chats || [])) {
+      opts += `<option value="${h(c.id)}">${h(c.label)} (${h(c.type)})</option>`;
+    }
+    opts += '<option value="__custom__">-- Type manually --</option>';
+    sel.innerHTML = opts;
+  } catch (e) {
+    sel.innerHTML = '<option value="">Failed to load. Type manually.</option>';
+    toggleCustomChat();
+  }
 }
 
 async function loadRules() {
@@ -91,7 +146,10 @@ async function showAddRule() {
   document.getElementById('rule-modal-title').textContent = 'Add Rule';
   document.getElementById('rule-id').value = '';
   document.getElementById('rule-name').value = '';
-  document.getElementById('rule-chat').value = '';
+  document.getElementById('rule-chat').innerHTML = '<option value="">Pick a bot first...</option>';
+  document.getElementById('rule-chat').style.display = 'block';
+  document.getElementById('rule-chat-custom').style.display = 'none';
+  document.getElementById('rule-chat-custom').value = '';
   document.getElementById('rule-sender').value = '';
   document.getElementById('rule-subject').value = '';
   document.getElementById('rule-enabled').checked = true;
@@ -107,12 +165,21 @@ async function editRule(id) {
   document.getElementById('rule-modal-title').textContent = 'Edit Rule';
   document.getElementById('rule-id').value = rule.id;
   document.getElementById('rule-name').value = rule.name || '';
-  document.getElementById('rule-chat').value = rule.chat_id;
+  document.getElementById('rule-chat-custom').value = rule.chat_id;
   document.getElementById('rule-sender').value = rule.sender_pattern || '';
   document.getElementById('rule-subject').value = rule.subject_pattern || '';
   document.getElementById('rule-enabled').checked = !!rule.enabled;
   await loadBotsSelect();
   document.getElementById('rule-bot').value = rule.bot_id;
+  await onBotChange();
+  setTimeout(() => {
+    const sel = document.getElementById('rule-chat');
+    if ([...sel.options].some(o => o.value === rule.chat_id)) {
+      sel.value = rule.chat_id;
+    } else {
+      toggleCustomChat();
+    }
+  }, 500);
   document.getElementById('rule-modal').style.display = 'flex';
 }
 
@@ -127,11 +194,12 @@ document.getElementById('rule-form').addEventListener('submit', async (e) => {
   const payload = {
     name: document.getElementById('rule-name').value,
     bot_id: document.getElementById('rule-bot').value,
-    chat_id: document.getElementById('rule-chat').value,
+    chat_id: getChatValue(),
     sender_pattern: document.getElementById('rule-sender').value || '*',
     subject_pattern: document.getElementById('rule-subject').value || null,
     enabled: document.getElementById('rule-enabled').checked,
   };
+  if (!payload.bot_id || !payload.chat_id) return alert('Bot and Chat are required');
   if (editingRuleId) {
     await fetch(`/api/rules/${editingRuleId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
   } else {

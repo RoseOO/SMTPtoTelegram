@@ -234,6 +234,11 @@ code {
 
 .pagination { display: flex; gap: 0.35rem; margin-top: 1rem; flex-wrap: wrap; }
 
+.clickable tbody tr { cursor: pointer; }
+.clickable tbody tr:hover td { background: rgba(79,142,247,0.08); }
+
+.modal-wide { max-width: 700px; }
+
 .toast {
   background: rgba(76, 175, 80, 0.15);
   border: 1px solid var(--success);

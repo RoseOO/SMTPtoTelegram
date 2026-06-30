@@ -4,9 +4,9 @@ const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 
 const {
-  getBots, createBot, updateBot, deleteBot,
+  getBots, getBot, createBot, updateBot, deleteBot,
   getRules, createRule, updateRule, deleteRule,
-  getLogs, getLogCount, clearLogs,
+  getLog, getLogs, getLogCount, clearLogs,
   loadSettings, saveSettings,
 } = require('../../lib/database');
 
@@ -84,6 +84,32 @@ router.delete('/bots/:id', (req, res) => {
   res.json({ success: true });
 });
 
+router.get('/bots/:id/chats', async (req, res) => {
+  const bot = getBot(req.params.id);
+  if (!bot) return res.status(404).json({ error: 'Bot not found' });
+
+  try {
+    const url = `https://api.telegram.org/bot${bot.token}/getUpdates?limit=100`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data.ok) return res.json({ chats: [], error: data.description });
+
+    const seen = new Map();
+    for (const update of data.result) {
+      const chat = update.message?.chat || update.my_chat_member?.chat || update.channel_post?.chat;
+      if (!chat) continue;
+      const id = String(chat.id);
+      if (seen.has(id)) continue;
+      let label = chat.title || chat.first_name || id;
+      if (chat.username) label += ` (@${chat.username})`;
+      seen.set(id, { id, label, type: chat.type });
+    }
+    res.json({ chats: Array.from(seen.values()) });
+  } catch (err) {
+    res.json({ chats: [], error: err.message });
+  }
+});
+
 // --- Rules ---
 
 router.get('/rules', (req, res) => {
@@ -131,6 +157,15 @@ router.delete('/rules/:id', (req, res) => {
 });
 
 // --- Logs ---
+
+router.get('/logs/:id', (req, res) => {
+  const log = getLog(req.params.id);
+  if (!log) return res.status(404).json({ error: 'Not found' });
+  if (log.attachments) {
+    try { log.attachments = JSON.parse(log.attachments); } catch { log.attachments = []; }
+  }
+  res.json(log);
+});
 
 router.get('/logs', (req, res) => {
   const limit = parseInt(req.query.limit) || 100;
